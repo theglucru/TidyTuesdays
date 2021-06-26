@@ -1,0 +1,110 @@
+---
+title: "Netflix Titles 2019"
+author: "glu"
+date: "6/10/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+netflix_titles <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-04-20/netflix_titles.csv')
+```
+
+```{r}
+# Helper Functions I will probably use a lot
+
+group_count <- function(df, column_names){
+  df %>% 
+    group_by_at(column_names) %>% 
+    summarise(n = n()) %>% 
+    arrange(desc(n))
+}
+
+row_search <- function(df, col, string){
+  df %>% 
+    filter(str_detect(df[[col]], str_c("^", string)))
+}
+```
+
+```{r, Breakdown of media types on Netflix}
+netflix_titles %>% group_count("type") %>% 
+  mutate(percent = n / sum (n) * 100) %>% 
+  ggplot()+
+  geom_col(aes(x = type, y = percent, fill = type))
+```
+
+Using helper function group_count can be used to see the most popular of any column
+
+```{r}
+netflix_countries_raw <- netflix_titles %>% group_count("country")
+netflix_countries_raw
+```
+
+Multiple countries exist, I split them and make them count individually
+
+```{r}
+df2 <- separate(netflix_titles, country, into = c("country", "country2"), sep = ", ") 
+df2
+```
+
+Some series has NA in the country, which is weird because everything has to be filmed SOMEWHERE right?
+
+```{r}
+na_country <- df2 %>% filter(is.na(country))
+na_country
+```
+
+Using the group_count for directors
+```{r}
+group_count(netflix_titles, "director")
+na_directors <- netflix_titles %>% filter(is.na(director))
+```
+
+a LOT of NA directors (and the dataset as a whole) for some reason
+
+EDA while keeping NA values:
+```{r}
+ggplot(netflix_countries_raw %>% head(20))+
+  geom_col(aes(x = fct_reorder(country, n), y = n))+
+  coord_flip()+
+  labs(title = "Country where the movie / show was produced",
+      x = "country")
+```
+
+```{r}
+# data set that only contains at least 1 NA
+netflix_titles_na <- netflix_titles %>% filter(!complete.cases(netflix_titles))
+colSums(is.na(netflix_titles_na))
+```
+
+Here we see how the NA values are spread out
+
+
+Using data with NA filtered out
+```{r}
+netflix_titles_cc <- netflix_titles %>% filter(complete.cases(netflix_titles))
+
+netflix_titles_cc %>% group_count("country") %>%
+  head(20) %>% 
+ggplot()+
+  geom_col(aes(x = fct_reorder(country, n), y = n))+
+  coord_flip()+
+  labs(title = "Country where the movie / show was produced",
+      x = "country")
+```
+
+Interesting takeaways:
+Canada jumps to the 4th spot after removing any row with missing values with nearly 500 titles removed. 
+Japan and South Korea which were the previous 4th and 5th most popular country has dropped
+
+```{r, South Korean and Japan titles}
+netflix_JPSK <- netflix_titles %>% 
+                filter(country == "Japan" | country == "South Korea") %>% 
+                filter(!complete.cases(.))
+
+colSums(is.na(netflix_JPSK))
+```
+
+For Japanese and South Korean titles, most missing values are in the director column
