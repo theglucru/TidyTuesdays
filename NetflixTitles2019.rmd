@@ -212,6 +212,28 @@ An example of the above function:
 netflix_titles %>% 
   countrydata("United States")
 
-netflix_titles %>% 
-  countrydata("Canada")
 ```
+
+Looking at different trends between countries*
+*I will use the country column as the country of origin of the show, although it may not be entirely accurate as films can be shot in one country but with a different director
+
+```{r}
+netflix_movies <- netflix_titles %>% filter(type == "Movie")
+
+netflix_movies$duration <- str_replace(netflix_movies$duration, "\\smin", replacement = "") #Removes min from duration column
+netflix_movies$duration <- as.double(netflix_movies$duration)
+
+
+netflix_movies %>% 
+  filter(!is.na(netflix_movies$country)) %>%
+  separate_rows(country, sep = ", ") %>% 
+  group_by(country) %>% 
+  summarise(n = n(), median_duration = median(duration, na.rm = TRUE)) %>% 
+  arrange(desc(n))
+
+netflix_movies %>% separate_rows(listed_in, sep = ", ") %>% 
+  group_by(listed_in) %>% 
+  summarise(n = n(), median_duration = median(duration, na.rm = TRUE)) %>% 
+  arrange(desc(median_duration))
+```
+
