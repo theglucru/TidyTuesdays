@@ -1,0 +1,183 @@
+---
+title: "MarioKart 64 World Records"
+author: "Gary Lu"
+date: "7/28/2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+library(stringi)
+```
+
+```{r, helper functions, include=FALSE}
+
+group_count <- function(df, column_names){
+  df %>% 
+    group_by_at(column_names) %>% 
+    summarise(n = n()) %>% 
+    arrange(desc(n))
+}
+
+row_search <- function(df, col, string){
+  df %>% 
+    filter(str_detect(df[[col]], str_c("^", string)))
+}
+```
+
+Data is from Thomas Mock (2021). Tidy Tuesday: A weekly data project aimed at the R ecosystem. https://github.com/rfordatascience/tidytuesday.
+<https://github.com/rfordatascience/tidytuesday/blob/master/data/2021/2021-05-25/readme.md>
+
+The data this week comes from Mario Kart World Records and contains world records for the classic (if you’re a 90’s kid) racing game on the Nintendo 64.
+
+This [video](https://www.youtube.com/watch?v=D6cpa-TvKn8&ab_channel=SummoningSalt) talks about the history of Mario Kart 64 World Records in greater detail. Despite it’s release back in 1996 (1997 in Europe and North America), it is still actiely played by many and new world records are achieved every month.
+
+The game consists of 16 individual tracks and world records can be achieved for the fastest single lap or the fastest completed race (three laps). Also, through the years, players discovered shortcuts in many of the tracks. Fortunately, shortcut and non-shortcut world records are listed separately.
+
+Furthermore, the Nintendo 64 was released for NTSC- and PAL-systems. On PAL-systems, the game runs a little slower. All times in this dataset are PAL-times, but they can be converted back to NTSC-times.
+
+Credit: [Benedikt Claus](https://github.com/benediktclaus)
+
+
+```{r getting data, echo=FALSE}
+records <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-05-25/records.csv')
+drivers <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-05-25/drivers.csv')
+```
+
+
+### Sample questions from the readme
+
+***
+
+* How did the world records develop over time?
+* Which track is the fastest?
+* For which track did the world record improve the most?
+* For how many tracks have shortcuts been discovered?
+* When were shortcuts discovered?
+* On which track does the shortcut save the most time?
+* Which is the longest standing world record?
+* Who is the player with the most world records?
+* Who are recent players?
+
+
+> How did the world records develop over time?
+
+```{r}
+course_records <- records %>% filter(type == "Three Lap")
+  
+lap_records <- records %>% filter(type == "One Lap")
+```
+
+The 90s were a time where everyone was trying to get the fastest times, records have been relatively quiet up until 2020 which saw a spike in records being broken.
+
+> Which track is the fastest?
+
+Data will be split by 3 lap and 1 lap records
+
+```{r, fastest track}
+course_records %>%
+  group_by(track, shortcut) %>% 
+  summarise(mean_time = mean(time),
+            median_time = median(time)) %>% 
+  arrange(mean_time)
+```
+
+The shortcut column indicates if a shortcut was used or not in the WR attempt, and as you can see, it makes a big difference in most stages
+
+Mario Raceway is the first track to show up twice when grouped by track then shortcut which indicates that it is, on average, the fastest track for speedrunners to complete. 
+
+Rainbow Road takes the longest out of all tracks to complete regardless of a shortcut (it is notorious for being the most difficult track in all Mario Kart games)
+
+##### *Looking at which tracks are most dependent on shortcuts*
+```{r}
+course_records %>% 
+  group_by(track, shortcut) %>% 
+  summarise(mean_time = mean(time), 
+            median_time = median(time)) %>% 
+  mutate(shortcutdiff = coalesce(mean_time - lag(mean_time)) * -1) %>%   # Multiply by -1 to remove negative. 
+  arrange(desc(track)) %>%
+  filter(!is.na(shortcutdiff)) %>% 
+  ggplot()+
+  geom_col(aes(x = fct_reorder(track, shortcutdiff), y = shortcutdiff))+
+  coord_flip()+
+  labs(x = "Track",
+       y = "Time saved with shortcuts",
+       title = "Time to complete track")
+```
+
+It seems learning the shortcut on Wario Stadium is one of the most important shortcuts to learn as it saves nearly 4 minutes of time (something to consider if you want to make your friends angry!)
+
+Rainbow Road on average saves the 2nd most time with the shortcut, but still makes it one of the longer tracks to complete.
+
+> For which track did the world record improve the most?
+
+Splitting between NTSC and PAL systems
+
+```{r}
+course_records_ntsc <- course_records %>% filter(system_played == "NTSC")
+
+course_records_ntsc %>% 
+  group_by(track, shortcut) %>% 
+  summarise(record_diff = max(time) - min(time)) %>% 
+  arrange(record_diff %>% desc()) %>% 
+  ggplot(aes(x = fct_reorder(track, record_diff), y = record_diff, fill = shortcut))+
+  geom_col(position = "dodge")+
+  coord_flip()+
+  labs(x = "Track",
+       y = "Time Improvement (s)")
+```
+
+Counting shortcuts, Rainbow Road has seen the most improvement in record times, With DK Jungle Parkway showing the most improvement without shortcuts
+
+> When were shortcuts discovered?
+
+```{r WWSD}
+shortcuts <- records %>% filter(shortcut == "Yes")
+
+shortcuts %>% 
+  group_by(track) %>% 
+  arrange(date) %>% 
+  summarise(date_found = first(date))
+```
+
+
+> On which track does the shortcut save the most time?
+
+  Answered above
+
+> Which is the longest standing world record?
+
+```{r longest record}
+records %>% 
+  group_by(system_played, track, type) %>% 
+  arrange(record_duration %>% desc()) %>% 
+  head(1)
+```
+
+
+> Who is the player with the most world records?
+
+```{r most records}
+players <- records %>% 
+            group_by(player)
+
+players %>% 
+  summarise(records = n()) %>% 
+  arrange(records %>%  desc())
+```
+
+> Who are recent players?
+
+"Recent" being at least 2015
+
+```{r}
+records %>% filter(date > "2015-01-01") %>% 
+  group_by(player) %>% 
+  summarise(n = n()) %>% 
+  arrange(n %>% desc())
+```
+
