@@ -1,0 +1,154 @@
+---
+title: "Superbowl Commercials"
+author: "Gary Lu"
+date: "8/18/2021"
+output: html_document
+---
+
+The data this week comes from [FiveThirtyEight](https://github.com/fivethirtyeight/superbowl-ads). They have a corresponding [article](https://projects.fivethirtyeight.com/super-bowl-ads/) on the topic. Note that the original source was superbowl-ads.com. You can watch all the ads via the FiveThirtyEight article above.
+
+>Like millions of viewers who tune into the big game year after year, we at FiveThirtyEight LOVE Super Bowl commercials. We love them so much, in fact, that we wanted to know everything about them … by analyzing and categorizing them, of course. We dug into the defining characteristics of a Super Bowl ad, then grouped commercials based on which criteria they shared — and let me tell you, we found some really weird clusters of commercials.
+
+>We watched 233 ads from the 10 brands that aired the most spots in all 21 Super Bowls this century, according to superbowl-ads.com.1 While we watched, we evaluated ads using seven specific criteria, marking every spot as a "yes" or "no" for each:
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+youtube <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-03-02/youtube.csv')
+```
+
+```{r}
+# Helper Functions I will probably use a lot
+
+group_count <- function(df, column_names){
+  df %>% 
+    group_by_at(column_names) %>% 
+    summarise(n = n()) %>% 
+    arrange(desc(n))
+}
+
+row_search <- function(df, col, string){
+  df %>% 
+    filter(str_detect(df[[col]], str_c("^", string)))
+}
+```
+
+Sample Questions
+
+* Is there any year that show less than the average number of ads?
+* Which brands are most popular?
+* Which type of commercial is most popular?
+  + split by YouTube likes, dislikes, comments, favorites
+
+```{r}
+youtube_years <- 
+  youtube %>% 
+  group_count("year")
+
+  ggplot(youtube_years)+
+  geom_col(aes(x = year, y = n))+
+  scale_x_continuous(breaks = seq(2000, 2020, 1))+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))+
+    labs(title = "Number of Superbowl Ads broken down by year")
+```
+
+2000, 2006, 2015, 2017 and 2020 had a considerable number of ads compared to the rest of the years.
+
+Matchup reference:
+
+2000: Rams Vs Titans
+2006: Seahawks vs Steelers
+2015: Patriots vs Seahawks
+2017: Patriots vs Falcons
+2020: Chiefs vs 49ers
+
+```{r}
+youtube_brands <- 
+  youtube %>% 
+  group_count("brand")
+
+ggplot(youtube_brands)+
+  geom_col(aes(x = fct_reorder(brand, -n), y = n))+
+  labs(x = "Brand",
+       title = "Brand representation of the last 20 Superbowls")
+```
+
+
+```{r}
+youtube_tidy <- 
+  youtube %>% 
+    pivot_longer(funny:use_sex, names_to = "category", values_to = "value")
+
+#Ads that fall in at least one category
+youtube_tidy_true <- youtube_tidy %>% filter(value == TRUE)
+
+youtube_tidy_true %>% 
+  group_by(category) %>% 
+  summarise(n = n()) %>% 
+  ggplot()+
+  geom_col(aes(x = fct_reorder(category, -n), y  = n))+
+  labs(title = "Number of commercials per category",
+       x = "Category")
+```
+
+```{r viewcount}
+youtube %>% 
+  arrange(desc(view_count)) %>% 
+  head(10) %>% 
+  ggplot()+
+  geom_col(aes(x = fct_reorder(title, view_count), y = view_count))+
+  coord_flip()
+```
+
+```{r Like/Dislike Ratio}
+youtube %>% 
+  arrange(desc(view_count)) %>% 
+  head(10) %>% 
+  ggplot()+
+  geom_col(aes(x = fct_reorder(title, view_count), y = view_count))+
+  coord_flip()+
+  labs(title = "Most viewed videos")
+
+youtube %>% 
+  arrange(desc(like_count)) %>% 
+  head(10) %>% 
+  ggplot()+
+  geom_col(aes(x = fct_reorder(title, like_count), y = like_count))+
+  coord_flip()+
+  labs(title = "Most liked videos")
+
+youtube %>% 
+  arrange(desc(dislike_count)) %>% 
+  head(10) %>% 
+  ggplot()+
+  geom_col(aes(x = fct_reorder(title, dislike_count), y = dislike_count))+
+  coord_flip()+
+  labs(title = "Most disliked videos")
+```
+
+Not too surprising to see that the most viewed videos also have the most likes and dislikes
+
+```{r}
+# Filtering those that have at least 100 likes and dislikes 
+
+youtube %>% 
+  filter(dislike_count >= 100 & like_count >= 100) %>% 
+  mutate(like_dislike_ratio = (like_count / dislike_count)) %>% 
+  arrange(desc(like_dislike_ratio)) %>% 
+  select(title, like_count, dislike_count, like_dislike_ratio)
+```
+
+```{r}
+youtube_tidy_true <- youtube_tidy_true %>% 
+  filter(dislike_count >= 100 & like_count >= 100) %>% 
+  mutate(like_dislike_ratio = (like_count / dislike_count))
+
+  ggplot(youtube_tidy_true)+
+  geom_point(aes(x = year, y = like_dislike_ratio, color = category))+
+    scale_x_continuous(breaks = seq(2000, 2020, 2))+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, size = 8))+
+  facet_wrap(~category)+
+  labs(title = "Like:Dislike Ratio")
+```
+
