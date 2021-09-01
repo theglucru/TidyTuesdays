@@ -1,17 +1,21 @@
 ---
-title: "Thomas Mock (2021). Tidy Tuesday: A weekly data project aimed at the R ecosystem. https://github.com/rfordatascience/tidytuesday."
+title: "Netflix Titles"
 author: "Gary Lu"
 date: "6/10/2021"
 output: html_document
 ---
 
 I will be using the 2021-04-20 dataset Netflix Titles at <https://github.com/rfordatascience/tidytuesday/blob/master/data/2021/2021-04-20/readme.md>
+Thomas Mock (2021). Tidy Tuesday: A weekly data project aimed at the R ecosystem. https://github.com/rfordatascience/tidytuesday.
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(lubridate)
 library(stringi)
 netflix_titles <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-04-20/netflix_titles.csv')
+netflix_titles$date_added <- mdy(netflix_titles$date_added)
 ```
 
 ```{r}
@@ -217,7 +221,7 @@ netflix_titles %>%
 Looking at different trends between countries*
 *I will use the country column as the country of origin of the show, although it may not be entirely accurate as films can be shot in one country but with a different director
 
-```{r}
+```{r, Median duration of movies per country}
 netflix_movies <- netflix_titles %>% filter(type == "Movie")
 
 netflix_movies$duration <- str_replace(netflix_movies$duration, "\\smin", replacement = "") #Removes min from duration column
@@ -237,3 +241,23 @@ netflix_movies %>% separate_rows(listed_in, sep = ", ") %>%
   arrange(desc(median_duration))
 ```
 
+```{r, Looking at trends based on date added}
+top_movie_genres <- netflix_movies %>%
+                    separate_rows(listed_in, sep = ", ") %>% 
+                    group_count("listed_in") %>% 
+                    head(10)
+
+netflix_movies %>% 
+  filter(listed_in %in% top_movie_genres$listed_in) %>% 
+  mutate(year_added = year(date_added)) %>% 
+  separate_rows(listed_in, sep = ", ") %>% 
+  group_by(year_added, listed_in) %>% 
+  filter(year_added >= 2010 & year_added < 2021) %>% 
+  summarise(n = n()) %>% 
+  ggplot(aes(x = year_added, y = n))+
+  geom_line(aes(color = listed_in))+
+  labs(title = "Number of titles added from the top 10 most popular genres from 2010-2020")+
+  scale_x_continuous(n.breaks = 10)
+```
+
+After 2016 was when there was on overall increase in number of titles available, with Documentaries, Stand-Up and Comedy with the biggest spikes

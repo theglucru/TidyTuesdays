@@ -149,6 +149,17 @@ youtube_tidy_true <- youtube_tidy_true %>%
     scale_x_continuous(breaks = seq(2000, 2020, 2))+
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, size = 8))+
   facet_wrap(~category)
+    
+  # Removing anything potential outliers
+  youtube_tidy_true <- youtube_tidy_true %>% 
+  filter(dislike_count >= 100 & like_count >= 100)
+
+  ggplot(youtube_tidy_true)+
+  geom_point(aes(x = year, y = view_count, color = category))+
+    scale_x_continuous(breaks = seq(2000, 2020, 2))+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, size = 8))+
+  facet_wrap(~category)+
+    coord_cartesian(ylim = c(999, 2100000))
 ```
 
 
@@ -165,3 +176,6 @@ youtube_tidy_true <- youtube_tidy_true %>%
   labs(title = "View count")
 ```
 
+Notes:
+The most successful commercials are ones that Show product quickly, and fall under funny category
+Commercials are trending upwards as time goes on (Probably due to more accessibiltiy to YouTube)
