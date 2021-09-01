@@ -136,8 +136,21 @@ youtube %>%
   filter(dislike_count >= 100 & like_count >= 100) %>% 
   mutate(like_dislike_ratio = (like_count / dislike_count)) %>% 
   arrange(desc(like_dislike_ratio)) %>% 
-  select(title, like_count, dislike_count, like_dislike_ratio)
+  select(title, view_count, like_count, dislike_count, like_dislike_ratio) %>% 
+  arrange(desc(view_count))
 ```
+
+```{r}
+youtube_tidy_true <- youtube_tidy_true %>% 
+  filter(dislike_count >= 100 & like_count >= 100)
+
+  ggplot(youtube_tidy_true)+
+  geom_point(aes(x = year, y = view_count, color = category))+
+    scale_x_continuous(breaks = seq(2000, 2020, 2))+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, size = 8))+
+  facet_wrap(~category)
+```
+
 
 ```{r}
 youtube_tidy_true <- youtube_tidy_true %>% 
@@ -149,7 +162,6 @@ youtube_tidy_true <- youtube_tidy_true %>%
     scale_x_continuous(breaks = seq(2000, 2020, 2))+
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, size = 8))+
   facet_wrap(~category)+
-  labs(title = "Like:Dislike Ratio")
+  labs(title = "View count")
 ```
-
 
