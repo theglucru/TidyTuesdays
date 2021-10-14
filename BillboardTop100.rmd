@@ -1,0 +1,86 @@
+---
+title: "BillboardTop100"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+
+#Helper Functions
+group_count <- function(df, column_names){
+  df %>% 
+    group_by_at(column_names, .drop = FALSE) %>% 
+    summarise(n = n()) %>% 
+    arrange(desc(n))
+}
+
+row_search <- function(df, col, string){
+  df %>% 
+    filter(str_detect(df[[col]], str_c("^", string)))
+}
+```
+
+
+```{r read data, echo=FALSE}
+billboard <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-09-14/billboard.csv')
+audio_features <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-09-14/audio_features.csv')
+
+# Join data on song_id, song, performer
+joined <- left_join(billboard, audio_features)
+```
+
+```{r Cleaning scripts}
+joined$week_id <- mdy(joined$week_id)
+
+joined <- unite(joined, song_id, song:performer, sep = ", ")
+```
+
+
+```{r Top performing songs}
+# Longest appearances
+joined %>% 
+  group_by(song_id) %>% 
+  arrange(desc(weeks_on_chart)) %>% 
+  select(song_id, weeks_on_chart) %>% 
+  distinct(song_id, .keep_all = TRUE)
+
+# Most #1 spots
+joined %>% 
+  filter(week_position == 1) %>% 
+  group_count("song_id")
+
+# Most appearances (Songs that are on/off the charts the most)
+joined %>% 
+  group_by(song_id) %>% 
+  arrange(desc(instance)) %>% 
+  select(song_id, instance) %>% 
+  distinct(song_id, .keep_all = TRUE)
+```
+
+```{r Finding trends in dataset}
+# Find out how audio_features trended over the years
+
+joined %>%
+  filter(complete.cases(joined)) %>%
+  group_by(year(week_id)) %>% 
+  mutate(meandance = mean(danceability),
+         meanenergy = mean(energy),
+         meankey = mean(key),
+         meanloudness = mean(loudness),
+         meanspeech = mean(speechiness),
+         meanacoustic = mean(acousticness),
+         meaninstrument = mean(instrumentalness),
+         meanliveness = mean(liveness),
+         meanvalence = mean(valence),
+         meantempo = mean(tempo)
+         ) %>% 
+  distinct(year(week_id), .keep_all = TRUE) %>% 
+  pivot_longer(meandance:meanvalence, names_to = "category", values_to = "value") %>% 
+  ggplot(aes(x = year(week_id)))+
+  geom_line(aes(y = value))+
+  scale_x_continuous(n.breaks = 10)+
+  facet_wrap(~category)
+```
+
