@@ -33,8 +33,10 @@ joined <- left_join(billboard, audio_features)
 
 ```{r Cleaning scripts}
 joined$week_id <- mdy(joined$week_id)
+billboard$week_id <- as.Date(billboard$week_id, format = "%m/%d/%Y")
 
-joined <- unite(joined, song_id, song:performer, sep = ", ")
+joined <- unite(joined, song_id, song:performer, sep = ", ", remove = FALSE)
+billboard <- unite(billboard, song_id, song:performer, sep = ", ", remove = FALSE)
 ```
 
 
@@ -57,11 +59,51 @@ joined %>%
   arrange(desc(instance)) %>% 
   select(song_id, instance) %>% 
   distinct(song_id, .keep_all = TRUE)
+
+# Longest #1 streak
+joined %>% 
+  filter(week_position == 1 & instance == 1) %>% 
+  group_by(song_id) %>%
+  select(week_id, song_id) %>% 
+  arrange(week_id) %>% 
+  summarise(num_days = last(week_id) - first(week_id) + 7 ) %>% 
+  mutate(num_weeks = num_days / 7) %>% 
+  arrange(desc(num_weeks))
+
+# Times an artist has appeared on BB100 each year
+# >52 indicates they have more than 1 song  in the chart, as shown by 
+# joined %>% filter(performer == "The Weeknd" & year(week_id) == 2020) %>% distinct(song_id)
+
+
+billboard %>%
+  mutate(year = year(week_id)) %>% 
+  group_by(year, performer) %>% 
+  summarise(weeks = n()) %>% 
+  arrange(desc(weeks), .by_group = TRUE) %>% 
+  filter(year == 2020)
+
+
+# Songs with the biggest drop
+billboard %>%
+  group_by(song_id, year(week_id)) %>% 
+  mutate(pos_diff = previous_week_position - week_position) %>% 
+  filter(!is.na(pos_diff)) %>% 
+  arrange(desc(week_id), pos_diff) %>% 
+  filter(pos_diff < 0) %>% 
+  select(week_id, song_id, pos_diff, week_position, previous_week_position)
+
+# Songs with the biggest jump
+billboard %>%
+  group_by(song_id, year(week_id)) %>% 
+  mutate(pos_diff = previous_week_position - week_position) %>% 
+  filter(!is.na(pos_diff)) %>% 
+  arrange(desc(week_id), desc(pos_diff)) %>% 
+  filter(pos_diff > 0) %>% 
+  select(week_id, song_id, pos_diff, week_position, previous_week_position)
 ```
 
 ```{r Finding trends in dataset}
 # Find out how audio_features trended over the years
-
 joined %>%
   filter(complete.cases(joined)) %>%
   group_by(year(week_id)) %>% 
@@ -82,5 +124,20 @@ joined %>%
   geom_line(aes(y = value))+
   scale_x_continuous(n.breaks = 10)+
   facet_wrap(~category)
+
+# Spotify genres over the years
+joined %>% 
+  mutate(year = year(week_id)) %>% 
+  filter(year == 2021) %>% 
+  filter(spotify_genre != "[]") %>% 
+  group_by(year, spotify_genre) %>% 
+  summarise(n = n()) %>% 
+  arrange(desc(n)) %>%
+  slice(1:10) %>% 
+  ggplot(aes(x = spotify_genre, y = n))+
+  geom_col()+
+  coord_flip()
+  
+  
 ```
 
