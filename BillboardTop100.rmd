@@ -34,7 +34,7 @@ joined <- left_join(billboard, audio_features)
 ```{r Cleaning scripts}
 joined$week_id <- mdy(joined$week_id)
 
-joined <- unite(joined, song_id, song:performer, sep = ", ")
+joined <- unite(joined, song_id, song:performer, sep = ", ", remove = FALSE)
 ```
 
 
@@ -57,11 +57,20 @@ joined %>%
   arrange(desc(instance)) %>% 
   select(song_id, instance) %>% 
   distinct(song_id, .keep_all = TRUE)
+
+# Longest #1 streak
+joined %>% 
+  filter(week_position == 1 & instance == 1) %>% 
+  group_by(song_id) %>%
+  select(week_id, song_id) %>% 
+  arrange(week_id) %>% 
+  summarise(num_days = last(week_id) - first(week_id) + 7 ) %>% 
+  mutate(num_weeks = num_days / 7) %>% 
+  arrange(desc(num_weeks))
 ```
 
 ```{r Finding trends in dataset}
 # Find out how audio_features trended over the years
-
 joined %>%
   filter(complete.cases(joined)) %>%
   group_by(year(week_id)) %>% 
@@ -82,5 +91,14 @@ joined %>%
   geom_line(aes(y = value))+
   scale_x_continuous(n.breaks = 10)+
   facet_wrap(~category)
+
+# Times an artist has appeared on BB100 each year
+joined %>%
+  mutate(year = year(week_id)) %>% 
+  group_by(year, performer) %>% 
+  summarise(weeks = n()) %>% 
+  arrange(desc(weeks), .by_group = TRUE) %>% 
+  filter(year == 2020)
+  
 ```
 
