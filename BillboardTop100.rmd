@@ -137,7 +137,5 @@ joined %>%
   ggplot(aes(x = spotify_genre, y = n))+
   geom_col()+
   coord_flip()
-  
-  
 ```
 
