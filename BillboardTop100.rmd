@@ -82,7 +82,6 @@ billboard %>%
   arrange(desc(weeks), .by_group = TRUE) %>% 
   filter(year == 2020)
 
-
 # Songs with the biggest drop
 billboard %>%
   group_by(song_id, year(week_id)) %>% 
@@ -125,19 +124,16 @@ joined %>%
   scale_x_continuous(n.breaks = 10)+
   facet_wrap(~category)
 
-# Spotify genres over the years
+# Spotify genres over the years since 2000
 joined %>% 
+  filter(spotify_genre != "[]" & week_id > "2018-01-01" & week_id < "2021-01-01") %>% 
   mutate(year = year(week_id)) %>% 
-  filter(year == 2021) %>% 
-  filter(spotify_genre != "[]") %>% 
-  group_by(year, spotify_genre) %>% 
-  summarise(n = n()) %>% 
-  arrange(desc(n)) %>%
+  group_by(year) %>% 
+  count(spotify_genre, sort = TRUE) %>% 
   slice(1:10) %>% 
-  ggplot(aes(x = spotify_genre, y = n))+
+  ggplot(aes(x = fct_reorder(spotify_genre, n), y = n))+
   geom_col()+
-  coord_flip()
-  
-  
+  coord_flip()+
+  facet_wrap(~year)
 ```
 

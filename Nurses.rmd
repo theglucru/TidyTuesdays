@@ -1,0 +1,45 @@
+---
+title: "Nurses"
+author: "Gary Lu"
+date: "10/25/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+
+nurses <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-10-05/nurses.csv')
+```
+
+```{r}
+ordered_nurses <- 
+nurses %>% 
+  group_by(State, Year) %>% 
+  arrange(desc(`Total Employed RN`), .by_group = TRUE) %>% 
+  ungroup(Year) %>% 
+  mutate(delta = coalesce(`Total Employed RN` - lag(`Total Employed RN`), 0),
+         p_delta = (delta / `Total Employed RN`) * 100,
+         p_delta = round(p_delta, 2)) %>% 
+  ungroup()
+
+ordered_nurses %>% 
+  select(State, Year, `Total Employed RN`, delta, p_delta)
+```
+
+```{r}
+# Employment over the years
+ordered_nurses %>% 
+  filter(Year >= 2015) %>% 
+  group_by(State) %>% 
+  summarise(avg_delta = mean(delta)) %>% 
+  arrange(desc(avg_delta)) %>% 
+  head(10) %>% 
+  ggplot(aes(x = fct_reorder(State, avg_delta), y = avg_delta))+
+  geom_col()+
+  coord_flip()+
+  labs(title = "Top 10 states with highest average number of new nurses",
+       x = "",
+       y = "New hires")
+```
+
