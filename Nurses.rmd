@@ -8,6 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+library(modelr)
 
 nurses <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-10-05/nurses.csv')
 ```
@@ -30,16 +31,57 @@ ordered_nurses %>%
 ```{r}
 # Employment over the years
 ordered_nurses %>% 
-  filter(Year >= 2015) %>% 
+  filter(Year >= 2020) %>% 
   group_by(State) %>% 
-  summarise(avg_delta = mean(delta)) %>% 
-  arrange(desc(avg_delta)) %>% 
+  summarise(delta = delta) %>% 
+  arrange(desc(delta)) %>% 
   head(10) %>% 
-  ggplot(aes(x = fct_reorder(State, avg_delta), y = avg_delta))+
+  ggplot(aes(x = fct_reorder(State, delta), y = delta))+
   geom_col()+
   coord_flip()+
-  labs(title = "Top 10 states with highest average number of new nurses",
+  labs(title = "Top 10 states with highest average number of new nurses 2019-2020",
        x = "",
        y = "New hires")
 ```
 
+```{r}
+ordered_nurses %>% 
+  unite(State:Year, sep = ", ", col = State_Year) %>% 
+  arrange(desc(`Hourly Wage Median`)) %>% 
+  head(10) %>% 
+  ggplot(aes(x = fct_reorder(State_Year, `Hourly Wage Median`), y = `Hourly Wage Median`))+
+  geom_col()+
+  coord_flip()+
+  labs(title = "Top 10 Hourly Median Wages",
+       x = "",
+       y = "Hourly Median Wage")
+```
+
+Makes sense considering the cost of living in these states
+
+```{r, Growth of Median wages}
+ordered_nurses %>% 
+  group_by(State) %>%
+  filter(!is.na(`Hourly Wage Median`)) %>% 
+  mutate(HWM_diff = coalesce(`Hourly Wage Median` - lag(`Hourly Wage Median`), 0)) %>% 
+  summarise(total_HMW_diff = last(`Hourly Wage Median`) - first(`Hourly Wage Median`))
+
+# Using California as an example since it has the highest median wage for nurses,
+
+ca_nurses <- ordered_nurses %>% filter(State == "California")
+ca_model <- lm(`Hourly Wage Median` ~ Year, data = ca_nurses)
+ca_loess <- loess(`Hourly Wage Median` ~ Year, data = ca_nurses)
+
+
+ca_nurses %>% select(Year, `Hourly Wage Median`) %>% 
+  add_predictions(ca_model) %>% 
+  ggplot(aes(x = Year, y = `Hourly Wage Median`))+
+  geom_line()+
+  geom_line(aes(y = pred), color = "red")
+
+ca_nurses %>% select(Year, `Hourly Wage Median`) %>% 
+  add_predictions(ca_loess) %>% 
+  ggplot(aes(x = Year, y = `Hourly Wage Median`))+
+  geom_line()+
+  geom_line(aes(y = pred), color = "blue")
+```
