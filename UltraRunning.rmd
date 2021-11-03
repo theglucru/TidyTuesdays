@@ -1,0 +1,117 @@
+---
+title: "Ultra Running"
+author: "Gary Lu"
+date: "11/17/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(tidytuesdayR)
+tuesdata <- tidytuesdayR::tt_load('2021-10-26')
+ultra_rankings <- tuesdata$ultra_rankings %>% unique() # Removing some duplicate rows
+race <- tuesdata$race
+```
+
+
+```{r ultra_ranking breakdown}
+ultra_rankings %>% 
+  distinct(runner, .keep_all = TRUE) %>% 
+  count(gender) %>% 
+  ggplot(aes(x = gender, y = n, fill = gender))+
+  geom_col()+
+  labs(title = "Ultra ranks by gender",
+       y = "")
+
+ultra_rankings %>% 
+  distinct(runner, .keep_all = TRUE) %>% 
+  count(nationality) %>%
+  arrange(desc(n)) %>% 
+  head(10) %>% 
+  ggplot(aes(x = fct_reorder(nationality, -n), y = n, fill = fct_reorder2(nationality, n, n)))+
+  geom_col()+
+  labs(title = "Ultra ranks by nationality",
+       y = "",
+       x = "Nationality")
+
+ultra_rankings %>% 
+  distinct(runner, .keep_all = TRUE) %>% 
+  group_by(gender) %>% 
+  count(age) %>% 
+  ggplot(aes(x = gender, y = age, color = gender))+
+  geom_point(position = "jitter")+
+  labs("Age and Gender breakdown")
+```
+
+```{r}
+race %>% 
+  count(country) %>% 
+  head(10) %>% 
+  ggplot(aes(x = fct_reorder(country, -n), n, fill = fct_reorder2(country, country, n)))+
+  geom_col()+
+  labs(title = "Top 10 race locations",
+       x = "country",
+       legend = "country")
+```
+
+## Joining data
+
+
+```{r echo=FALSE}
+joined <- race %>% left_join(ultra_rankings)
+```
+
+```{r rank 1}
+joined %>% 
+  group_by(race_year_id) %>% 
+  filter(rank == 1) %>% 
+  count(runner) %>%
+  arrange(desc(n)) %>%
+  head(5)
+
+joined %>% 
+  group_by(race_year_id) %>% 
+  filter(rank <= 10) %>% 
+  count(runner) %>%
+  arrange(desc(n)) %>%
+  head(10)
+```
+
+No one has more than 1 first place finish or more than 2 top 10 finishes
+
+```{r 10 Fastest runners in each race}
+top10 <- joined %>% 
+  filter(distance > 0) %>% 
+  group_by(race_year_id) %>% 
+  arrange(time_in_seconds) %>% 
+  slice(1:10) %>% 
+  ungroup()
+
+top10 %>% 
+  filter(distance >= 150) %>% # Most data points have distances >150
+  group_by(race_year_id) %>% 
+  mutate(med_age = median(age)) %>%
+  unique() %>% 
+  ggplot(aes(distance, med_age))+
+  geom_point()+
+  labs(title = "Median age of top 10 runners vs distance")
+
+top10 %>% 
+  filter(distance >= 150) %>% 
+  group_by(race_year_id, gender, distance) %>% 
+  summarise(n = n()) %>% 
+  ggplot(aes(gender, distance, color = n))+
+  geom_point(position = "jitter")
+```
+
+```{r races where women outperformed men}
+joined %>% 
+  group_by(race_year_id, gender) %>% 
+  summarise(n = n()) %>% 
+  mutate(num_M = lag(n)) %>% 
+  filter(n > num_M)
+
+joined %>% 
+  filter(race_year_id == 12535 | race_year_id == 18865 | race_year_id == 32169| race_year_id == 70118)
+```
+
