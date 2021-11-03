@@ -19,7 +19,7 @@ nurses %>%
   group_by(State, Year) %>% 
   arrange(desc(`Total Employed RN`), .by_group = TRUE) %>% 
   ungroup(Year) %>% 
-  mutate(delta = coalesce(`Total Employed RN` - lag(`Total Employed RN`), 0),
+  mutate(delta = coalesce(`Total Employed RN` - lag(`Total Employed RN`)),
          p_delta = (delta / `Total Employed RN`) * 100,
          p_delta = round(p_delta, 2)) %>% 
   ungroup()
@@ -63,7 +63,7 @@ Makes sense considering the cost of living in these states
 ordered_nurses %>% 
   group_by(State) %>%
   filter(!is.na(`Hourly Wage Median`)) %>% 
-  mutate(HWM_diff = coalesce(`Hourly Wage Median` - lag(`Hourly Wage Median`), 0)) %>% 
+  mutate(HWM_diff = coalesce(`Hourly Wage Median` - lag(`Hourly Wage Median`))) %>% 
   summarise(total_HMW_diff = last(`Hourly Wage Median`) - first(`Hourly Wage Median`))
 
 # Using California as an example since it has the highest median wage for nurses,
@@ -71,6 +71,8 @@ ordered_nurses %>%
 ca_nurses <- ordered_nurses %>% filter(State == "California")
 ca_model <- lm(`Hourly Wage Median` ~ Year, data = ca_nurses)
 ca_loess <- loess(`Hourly Wage Median` ~ Year, data = ca_nurses)
+ca_nurses <- ca_nurses %>% add_residuals(ca_loess)
+
 
 
 ca_nurses %>% select(Year, `Hourly Wage Median`) %>% 
@@ -84,4 +86,49 @@ ca_nurses %>% select(Year, `Hourly Wage Median`) %>%
   ggplot(aes(x = Year, y = `Hourly Wage Median`))+
   geom_line()+
   geom_line(aes(y = pred), color = "blue")
+
 ```
+
+```{r}
+# Relationship between # of nurses and pay
+rbnp <- ordered_nurses %>% select(State, Year, `Total Employed RN`, `Hourly Wage Median`)
+
+rbnp %>% 
+  group_by(State) %>% 
+  mutate(rn_delta = `Total Employed RN` - lag(`Total Employed RN`),
+         wage_delta = `Hourly Wage Median` - lag(`Hourly Wage Median`)) %>% 
+  filter(!is.na(rn_delta) & !is.na(wage_delta)) %>% 
+  filter(State %in% c("Massachusetts")) %>% 
+  ggplot(aes(x = Year, y = wage_delta))+
+  geom_line()+
+  labs(y = "Wage increase")
+
+rbnp %>% 
+  group_by(State) %>% 
+  mutate(rn_delta = `Total Employed RN` - lag(`Total Employed RN`),
+         wage_delta = `Hourly Wage Median` - lag(`Hourly Wage Median`)) %>% 
+  filter(!is.na(rn_delta) & !is.na(wage_delta)) %>% 
+  filter(State %in% c("Massachusetts")) %>% 
+  ggplot(aes(x = Year, y = rn_delta))+
+  geom_line()+
+  labs(y = "RN increase")
+
+# Grouping by year
+rbnp %>% 
+  group_by(Year) %>% 
+  filter(!is.na(`Total Employed RN`)) %>% 
+  filter(!is.na(`Hourly Wage Median`)) %>% 
+  summarise(National_Employed_RN = sum(`Total Employed RN`),
+         National_Median_Wage = median(`Hourly Wage Median`)) %>% 
+  mutate(delta_rn = National_Employed_RN - lag(National_Employed_RN),
+         delta_wage = National_Median_Wage - lag(National_Median_Wage),
+         pct_rn = delta_rn / National_Employed_RN * 100,
+         pct_wage = delta_wage / National_Median_Wage * 100) %>%
+  ggplot(aes(x = Year))+
+  geom_line(aes(y = pct_rn), color = "blue")+
+  geom_line(aes(y = pct_wage), color = "red")+
+  labs(title = "Percent changes in national median wages and total employed RN in nation",
+       y = "Percent change")
+  
+```
+
