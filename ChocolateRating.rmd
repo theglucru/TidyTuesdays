@@ -1,0 +1,32 @@
+---
+title: "TITLE"
+author: "Gary Lu"
+date: "DATE"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidytuesdayR)
+```
+
+## Loading TidyTuesday Data
+
+```{r}
+tuesdata <- tidytuesdayR::tt_load('2022-01-18')
+
+choco <- tuesdata$chocolate
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
