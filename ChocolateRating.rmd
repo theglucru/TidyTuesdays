@@ -21,12 +21,98 @@ tuesdata <- tidytuesdayR::tt_load('2022-01-18')
 choco <- tuesdata$chocolate
 ```
 
-## Including Plots
+```{r}
+ratings <- choco %>% 
+  group_by(review_date) %>% 
+  summarise(med_rating = median(rating), n = n(), mean_rating = mean(rating), sd = sd(rating))
 
-You can also embed plots, for example:
-
-```{r, echo=FALSE}
-plot(pressure)
+  ggplot(ratings, aes(x = review_date, y = med_rating))+
+  geom_line()+
+  geom_point()+
+  labs(title = "Median rating of chocolates",
+       x = "",
+       y = "")+
+  scale_x_continuous(breaks = sort(choco$review_date %>% unique()))
+  
+  ggplot(ratings, aes(x = review_date, y = mean_rating))+
+  geom_line()+
+  geom_point()+
+  labs(title = "Mean rating of chocolates",
+       x = "",
+       y = "")+
+  scale_x_continuous(breaks = sort(choco$review_date %>% unique()))
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Median and means are around the same
+
+
+```{r}
+choco2 <- separate_rows(choco, c("most_memorable_characteristics"), sep = ",")
+choco2$most_memorable_characteristics <- choco2$most_memorable_characteristics %>% str_trim()
+```
+
+
+```{r, echo=FALSE}
+fourplus <- choco %>% filter(rating >= 4.0)
+
+fourplus %>% 
+  count(company_manufacturer, sort = TRUE) %>% 
+  filter(n > 2) %>% 
+  ggplot(aes(x = fct_reorder(company_manufacturer, -n), y = n))+
+  geom_col()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))+
+  labs(title = "Manufacturers with at least 3 chocolates rated 4 or higher",
+       x = "Manufacturer",
+       y = "")
+```
+
+```{r}
+# Soma specfic data since they have the most number of chocolates rated 4 or higher
+
+soma <- choco %>% filter(company_manufacturer == "Soma")
+soma2 <- choco2 %>% filter(company_manufacturer == "Soma")
+
+soma_high_rated <- soma2 %>% filter(rating >= 4.0)
+
+soma_high_rated %>% 
+  group_by(review_date, most_memorable_characteristics) %>% 
+  summarise(n = n()) %>% 
+  ggplot()+
+  geom_col(aes(x = most_memorable_characteristics, y = n))+
+  facet_wrap(~review_date)+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))+
+  labs(title = "Characteristics of high rated chocolate from Soma")
+```
+
+
+```{r}
+choco_high_rated <- choco2 %>% filter(rating >= 4.0)
+
+choco_high_rated %>% 
+  group_by(most_memorable_characteristics) %>% 
+  summarise(n = n()) %>% 
+  filter(n > 1) %>% 
+  ggplot()+
+  geom_col(aes(x = fct_reorder(most_memorable_characteristics, -n), y = n))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))+
+  labs(title = "Characteristics of high rated chocolate (overall)",
+       x = "",
+       y = "")
+```
+
+Higher rated chocolates are described as either creamy, cocoa, or nutty
+
+
+```{r}
+# Group by country
+choco %>% 
+  group_by(review_date, company_location) %>% 
+  filter(n() > 15) %>% 
+  summarise(mean_rating = mean(rating)) %>% 
+  ggplot()+
+  geom_line(aes(x = review_date, y = mean_rating, color = company_location))+
+  geom_point(aes(x = review_date, y = mean_rating, color = company_location))+
+  scale_x_continuous(breaks = sort(choco$review_date %>% unique()))+
+  labs(title = "Average ratings by country (at least 15 ratings)")
+```
+
