@@ -11,6 +11,7 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(tidytuesdayR)
+library(lubridate)
 ```
 
 ## Loading TidyTuesday Data
@@ -22,6 +23,8 @@ choco <- tuesdata$chocolate
 ```
 
 ```{r}
+choco$review_date <- ymd(choco$review_date, truncated = 2L)
+
 ratings <- choco %>% 
   group_by(review_date) %>% 
   summarise(med_rating = median(rating), n = n(), mean_rating = mean(rating), sd = sd(rating))
@@ -44,7 +47,6 @@ ratings <- choco %>%
 ```
 
 Median and means are around the same
-
 
 ```{r}
 choco2 <- separate_rows(choco, c("most_memorable_characteristics"), sep = ",")
@@ -112,7 +114,46 @@ choco %>%
   ggplot()+
   geom_line(aes(x = review_date, y = mean_rating, color = company_location))+
   geom_point(aes(x = review_date, y = mean_rating, color = company_location))+
-  scale_x_continuous(breaks = sort(choco$review_date %>% unique()))+
-  labs(title = "Average ratings by country (at least 15 ratings)")
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y")+
+  labs(title = "Average ratings by country (at least 15 ratings)")+
+  theme_light()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 ```
 
+```{r}
+# Ratings based on Cocoa percent
+choco %>% 
+  group_by(review_date, cocoa_percent) %>%
+  filter(n() > 10) %>% 
+  summarise(mean_rating = mean(rating)) %>% 
+  ggplot(aes(group = 1))+
+  geom_point(aes(review_date, y = mean_rating, color = cocoa_percent))+
+  geom_line(aes(review_date, y = mean_rating, color = cocoa_percent))+
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y")+
+  labs(title = "Average ratings by cocoa percentage (at least 10 ratings)")+
+  facet_wrap(~cocoa_percent)+
+  theme_light()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+```{r}
+# Rating based on company
+
+choco %>% 
+  group_by(company_manufacturer) %>%
+  filter(n() > 10) %>% 
+  group_by(company_manufacturer, review_date) %>% 
+  summarise(mean_rating = mean(rating)) %>% 
+  ungroup() %>% 
+  ggplot()+
+  geom_point(aes(review_date, y = mean_rating, color = company_manufacturer))+
+  geom_line(aes(review_date, y = mean_rating, color = company_manufacturer))+
+  scale_x_date(date_breaks = "2 years", date_labels = "%Y")+
+  labs(title = "Average ratings by company (at least 10 ratings)")+
+  facet_wrap(~company_manufacturer)+
+  theme_light()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+
+```
+
+Possible factors that can contribute: low sample size, people may be biased if they know the brand they are reviewing
