@@ -1,11 +1,13 @@
 ---
-title: "TITLE"
+title: "Chocolate Ratings"
 author: "Gary Lu"
-date: "DATE"
+date: "1/20/2022"
 output: html_document
 editor_options: 
   chunk_output_type: console
 ---
+
+Ideas were taken from [Will Canniford at Kaggle](https://www.kaggle.com/willcanniford/chocolate-bar-ratings-extensive-eda) who supplied the dataset found on the [Tidy Tuesdays Github](https://github.com/rfordatascience/tidytuesday)
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -16,7 +18,7 @@ library(lubridate)
 
 ## Loading TidyTuesday Data
 
-```{r}
+```{r, echo = False}
 tuesdata <- tidytuesdayR::tt_load('2022-01-18')
 
 choco <- tuesdata$chocolate
@@ -157,3 +159,65 @@ choco %>%
 ```
 
 Possible factors that can contribute: low sample size, people may be biased if they know the brand they are reviewing
+
+```{r}
+# Ratings based on cocoa bean origin
+
+choco %>% 
+  group_by(country_of_bean_origin) %>%
+  filter(n() > 10) %>% 
+  group_by(country_of_bean_origin, review_date) %>% 
+  summarise(mean_rating = mean(rating)) %>% 
+  ungroup() %>% 
+  ggplot()+
+  geom_point(aes(review_date, y = mean_rating, color = country_of_bean_origin))+
+  geom_line(aes(review_date, y = mean_rating, color = country_of_bean_origin))+
+  scale_x_date(date_breaks = "2 years", date_labels = "%Y")+
+  labs(title = "Average ratings by country of bean origin (at least 10 ratings)")+
+  facet_wrap(~country_of_bean_origin)+
+  theme_light()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+```{r}
+# Changes in rating statistics
+choco %>% 
+  group_by(review_date) %>% 
+  summarise(n = n(), mean = mean(rating), median = median(rating), sd = sd(rating)) %>% 
+  ggplot(aes(x = review_date))+
+  geom_line(aes(y = mean, color = "mean"))+
+  geom_line(aes(y = median, color = "median"))+
+  labs(title = "Changes in mean and median rating each year")+
+  scale_x_date(date_breaks = "2 years", date_labels = "%Y")
+
+choco %>% 
+  group_by(review_date) %>% 
+  summarise(n = n(), mean = mean(rating), median = median(rating), sd = sd(rating)) %>% 
+  ggplot(aes(x = review_date, y = sd))+
+  geom_point(aes(size = n))+
+  geom_line()+
+  labs(title = "Changes in sd",
+       y = "Standard Deviation of ratings")+
+  scale_x_date(date_breaks = "2 years", date_labels = "%Y")
+```
+
+The number of ratings goes up each year while the standard deviation decreases
+The mean/median never falls under 3.0
+
+```{r}
+# Under 3.0 ratings
+
+under3 <- choco %>% 
+  group_by(review_date) %>% 
+  filter(rating < 3.0)
+
+under3 %>% 
+  group_by(review_date) %>% 
+  mutate(n = n(), mean = mean(rating)) %>% 
+  ggplot(aes(x = review_date, y = rating))+
+  geom_point()+
+  geom_line(aes(y = mean, color = "Mean rating"))+
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y")
+```
+
+Over the years, the number of ratings < 3.0 have decreased as well as the overall spread of ratings
