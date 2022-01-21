@@ -18,7 +18,7 @@ library(lubridate)
 
 ## Loading TidyTuesday Data
 
-```{r, echo = False}
+```{r, echo = FALSE}
 tuesdata <- tidytuesdayR::tt_load('2022-01-18')
 
 choco <- tuesdata$chocolate
