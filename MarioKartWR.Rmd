@@ -5,6 +5,8 @@ date: "7/28/2021"
 output:
   html_document: default
   pdf_document: default
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -155,7 +157,7 @@ shortcuts %>%
 records %>% 
   group_by(system_played, track, type) %>% 
   arrange(record_duration %>% desc()) %>% 
-  head(1)
+  head(10)
 ```
 
 
@@ -167,17 +169,34 @@ players <- records %>%
 
 players %>% 
   summarise(records = n()) %>% 
-  arrange(records %>%  desc())
+  arrange(records %>%  desc()) %>% 
+  head(10) %>% 
+  ggplot(aes(x = fct_reorder(player,-records), records))+
+  geom_col()+
+  labs("Players with the most world records")
 ```
 
-> Who are recent players?
 
-"Recent" being at least 2015
+> Breaking it down per year
 
 ```{r}
-records %>% filter(date > "2015-01-01") %>% 
-  group_by(player) %>% 
+players %>% 
+  ungroup() %>% 
+  mutate(year = year(date)) %>%
+  group_by(year) %>% 
+  mutate(n = n()) %>% 
+  group_by(year, player) %>% 
   summarise(n = n()) %>% 
-  arrange(n %>% desc())
+  filter(n > 5) %>% 
+  ggplot(aes(x = year, n, color = player, label = player))+
+  geom_point()+
+  geom_text(vjust = 1)+
+  labs(title = "Number of records each player has made per year (at least 5 records)",
+       y = "",
+       x = "")+
+  theme(legend.position = "none")
 ```
 
+We see that players like Penev and MJ had the most records for the first years of playing. 
+MR, DAN and abney317 had the most records during the later years 
+In MR's case, it's more impressive since he has the 2nd most overall records
