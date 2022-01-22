@@ -46,8 +46,11 @@ Credit: [Benedikt Claus](https://github.com/benediktclaus)
 
 
 ```{r getting data, echo=FALSE}
-records <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-05-25/records.csv')
-drivers <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-05-25/drivers.csv')
+
+tuesdata <- tidytuesdayR::tt_load('2021-05-25')
+
+records <- tuesdata$records
+drivers <- tuesdata$drivers
 ```
 
 
@@ -71,7 +74,7 @@ drivers <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/ti
 ```{r}
 course_records <- records %>% filter(type == "Three Lap")
   
-lap_records <- records %>% filter(type == "One Lap")
+lap_records <- records %>% filter(type == "Single Lap")
 ```
 
 The 90s were a time where everyone was trying to get the fastest times, records have been relatively quiet up until 2020 which saw a spike in records being broken.
@@ -173,7 +176,8 @@ players %>%
   head(10) %>% 
   ggplot(aes(x = fct_reorder(player,-records), records))+
   geom_col()+
-  labs("Players with the most world records")
+  labs(title = "Players with the most world records",
+       x = "Player")
 ```
 
 
@@ -198,5 +202,104 @@ players %>%
 ```
 
 We see that players like Penev and MJ had the most records for the first years of playing. 
-MR, DAN and abney317 had the most records during the later years 
+MR, DAN, and abney317 had the most records during the later years 
 In MR's case, it's more impressive since he has the 2nd most overall records
+
+> Can we determine a GOAT? (Greatest of all time)
+
+If we are to determine a GOAT in a game that has been played for 20 years, we need to determine what makes the GOAT?
+Some ideas are
+  * Fastest cumulative time over all stages
+    + The problem with this is that not all players will have a record on all stages
+  * Total record duration (i.e. longest unbroken records)
+
+    
+> Fastest cumulative time over all stages
+
+I will break this down into 3 lap and 1 lap since techniques can vary and further broken down into whether shortcuts were used or not
+
+```{r}
+course_records %>% 
+  group_by(track, shortcut) %>% 
+  slice_min(time) %>% 
+  group_by(player) %>% 
+  summarise(sum_time_s = sum(time)) %>% 
+  ggplot(aes(x = fct_reorder(player, -sum_time_s), sum_time_s))+
+  geom_col()+
+  labs(title = "Cumulative record time(s) (3 laps)",
+       subtitle = "Lower is better",
+       y = "Time (s)",
+       x = "Player")
+
+lap_records %>% 
+  group_by(track, shortcut) %>% 
+  slice_min(time) %>% 
+  group_by(player) %>% 
+  summarise(sum_time_s = sum(time)) %>% 
+  ggplot(aes(x = fct_reorder(player, -sum_time_s), sum_time_s))+
+  geom_col()+
+  labs(title = "Cumulative record time(s) (1 lap)",
+       subtitle = "Lower is better",
+       y = "Time (s)",
+       x = "Player")
+```
+
+The problem with a plots like this is that players that only have 1 record on the shortest stage in the game will look like they place higher. Mostly just using this as an idea of players to keep an eye on
+
+> Total record duration
+
+Again I will split between 3 laps and 1 lap
+
+```{r}
+course_records %>% 
+  group_by(track, shortcut) %>% 
+  slice_max(record_duration) %>% # Gets the highest record duration for each track
+  group_by(player) %>% # Player who has that record
+  summarise(total_record_days = sum(record_duration)) %>% 
+  ggplot(aes(x = fct_reorder(player, -total_record_days), total_record_days))+
+  geom_col()+
+  labs(title = "Sum of record durations (3 Laps)",
+       x = "Player",
+       y = "Days of record held")
+
+lap_records %>% 
+  group_by(track, shortcut) %>% 
+  slice_max(record_duration) %>% # Gets the highest record duration for each track
+  group_by(player) %>% # Player who has that record
+  summarise(total_record_days = sum(record_duration)) %>% 
+  ggplot(aes(x = fct_reorder(player, -total_record_days), total_record_days))+
+  geom_col()+
+  labs(title = "Sum of record durations (1 Lap)",
+       x = "Player",
+       y = "Days of record held")
+```
+
+Graphing the number of longest records
+
+```{r}
+course_records %>% 
+  group_by(track, shortcut) %>% 
+  slice_max(record_duration) %>% # Gets the highest record duration for each track
+  group_by(player) %>% # Player who has that record
+  summarise(n = n()) %>% 
+  ggplot(aes(x = fct_reorder(player, -n), n))+
+  geom_col()+
+  labs(title = "Number of longest record durations (3 Laps)",
+       x = "Player",
+       y = "Days of record held")
+
+lap_records %>% 
+  group_by(track, shortcut) %>% 
+  slice_max(record_duration) %>% # Gets the highest record duration for each track
+  group_by(player) %>% # Player who has that record
+  summarise(n = n()) %>% 
+  ggplot(aes(x = fct_reorder(player, -n), n))+
+  geom_col()+
+  labs(title = "Number of longest record durations (1 Lap)",
+       x = "Player",
+       y = "Days of record held")
+```
+
+Conclusions I came up with based on the data
+* Penev, One of the first to ever start speedrunning Mario Kart 64 but has not broken any records after the first few years
+* MJ and MR have shown up in almost all plots that I created so it might be safe to say that they have the biggest influence on the game
