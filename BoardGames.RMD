@@ -1,0 +1,119 @@
+---
+title: "Board Games"
+author: "Gary Lu"
+date: "1/25/2022"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+The data is sourced from [R for Data Science Github](https://github.com/rfordatascience/tidytuesday)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidytuesdayR)
+library(lubridate)
+```
+
+## Loading TidyTuesday Data
+
+```{r, include=FALSE}
+tuesdata <- tidytuesdayR::tt_load('2022-01-25')
+
+details <- tuesdata$details
+rating <- tuesdata$ratings
+```
+
+_Note that the data can be joined together by the id column_
+
+> Looking at the ratings.csv
+
+```{r, echo=FALSE}
+rating %>% 
+  group_by(name) %>% 
+  summarise(n_ratings = n()) %>% 
+  count(n_ratings)
+```
+
+This is done to check how many unique ratings there are per game. We can see that a game can have up to 6 ratings and over 20,000 games with just 1 rating
+
+> Looking at the highest ranked games
+
+```{r}
+rating %>% 
+  filter(rank <= 20) %>% 
+  arrange(rank)
+```
+
+We see that the ranks are based on Bayes average since the population size is not the same for each game
+
+
+
+> Checking to see how things have changed over the years
+
+```{r}
+rating2 <- rating %>% filter(year >= 1900)
+
+rating %>% 
+  group_by(year) %>% 
+  summarise(n_games = n()) %>% 
+  head(10)
+```
+
+I will assume that having 0 for a year means that it is unknown when it came out. 
+
+**Because the dataset includes board games that are hundreds to thousands of years old, I will condense the data to anything with a year > 1900 to see if I can get better visualizations** 
+
+> Plotting number of ratings per year
+
+```{r}
+options(scipen = 999)
+rating2 %>% 
+  group_by(year) %>%
+  summarise(sum_users = sum(users_rated)) %>% 
+  ggplot(aes(x = year, sum_users))+
+  geom_line()+
+  geom_point()+
+  labs(title = "Number of user reviews per game's release year")+
+  scale_y_continuous(n.breaks = 6)+
+  scale_x_continuous(n.breaks = 15)
+```
+
+So it seems that some games have a year as far 3000. My guess is that this column doesn't differentiate between BC and AD.
+In this case I will group it with 0 to at least keep it in the dataset
+
+```{r}
+rating2$year[rating2$year > 2099] <- 0
+```
+
+The 1990s and early 2000s was the most popular time of board games 
+
+> Checking the ratings over time
+
+```{r}
+rating2 %>% 
+  group_by(year) %>% 
+  summarise(avg_rating = mean(average),
+            sum_users = sum(users_rated)) %>% 
+  ggplot(aes(x = year))+
+  geom_line(aes(y = avg_rating))+
+  labs(title = "Average rating of board games per release year",
+       y = "Average rating",
+       x = "")
+```
+
+```{r}
+rating2 %>% 
+  group_by(year) %>% 
+  summarise(avg_rating = mean(average),
+            sum_users = sum(users_rated)) %>% 
+  ggplot(aes(x = year))+
+  geom_line(aes(y = sum_users))+
+    labs(title = "Number of reviews of board games per release year",
+       y = "Number of reviews",
+       x = "")
+```
+
+We see the average review go up as well as the number of reviews going up as newer board games come out
+The dip towards the end might be because there have not been new releases recently
