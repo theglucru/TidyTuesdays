@@ -4,7 +4,7 @@ author: "Gary Lu"
 date: "1/25/2022"
 output: html_document
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 The data is sourced from [R for Data Science Github](https://github.com/rfordatascience/tidytuesday)
@@ -25,18 +25,16 @@ details <- tuesdata$details
 rating <- tuesdata$ratings
 ```
 
-_Note that the data can be joined together by the id column_
+_(Note: Data can be joined together by the id column)_
 
-> Looking at the ratings.csv
+> Cleaning data
 
-```{r, echo=FALSE}
-rating %>% 
-  group_by(name) %>% 
-  summarise(n_ratings = n()) %>% 
-  count(n_ratings)
+```{r}
+rating$year[rating$year >= 2100] <- 0 
+  # Some games have a weird year numbers which is probably BC so I will put them as 0
+modern <- rating %>% filter(year >= 1900) 
+  # separating games after 1900 to see things a little clearer
 ```
-
-This is done to check how many unique ratings there are per game. We can see that a game can have up to 6 ratings and over 20,000 games with just 1 rating
 
 > Looking at the highest ranked games
 
@@ -46,74 +44,230 @@ rating %>%
   arrange(rank)
 ```
 
-We see that the ranks are based on Bayes average since the population size is not the same for each game
-
-
+We see that the ranks are based on Bayes average and not average (The average rating on the website the data was from)
+_I am not too familiar with Bayes statistics so I don't know how to interpret them_
 
 > Checking to see how things have changed over the years
 
 ```{r}
-rating2 <- rating %>% filter(year >= 1900)
-
-rating %>% 
+modern %>% 
   group_by(year) %>% 
   summarise(n_games = n()) %>% 
-  head(10)
+  ggplot(aes(x = year, n_games))+
+  geom_line()+
+  labs(title = "Number of games released per year",
+       x = "",
+       y = "")+
+  scale_x_continuous(n.breaks = 15)
 ```
 
-I will assume that having 0 for a year means that it is unknown when it came out. 
-
-**Because the dataset includes board games that are hundreds to thousands of years old, I will condense the data to anything with a year > 1900 to see if I can get better visualizations** 
 
 > Plotting number of ratings per year
 
 ```{r}
 options(scipen = 999)
-rating2 %>% 
+modern %>% 
   group_by(year) %>%
   summarise(sum_users = sum(users_rated)) %>% 
   ggplot(aes(x = year, sum_users))+
   geom_line()+
   geom_point()+
-  labs(title = "Number of user reviews per game's release year")+
+  labs(title = "Number of user reviews per game's release year",
+       y = "Sum of user reviews")+
   scale_y_continuous(n.breaks = 6)+
   scale_x_continuous(n.breaks = 15)
 ```
 
-So it seems that some games have a year as far 3000. My guess is that this column doesn't differentiate between BC and AD.
-In this case I will group it with 0 to at least keep it in the dataset
-
-```{r}
-rating2$year[rating2$year > 2099] <- 0
-```
-
-The 1990s and early 2000s was the most popular time of board games 
+Here we see board games gaining popularity over time, up until 2015. 
+This correlates to the previous plot where there are less games that were made after 2015
 
 > Checking the ratings over time
 
 ```{r}
-rating2 %>% 
+modern %>% 
   group_by(year) %>% 
   summarise(avg_rating = mean(average),
             sum_users = sum(users_rated)) %>% 
   ggplot(aes(x = year))+
   geom_line(aes(y = avg_rating))+
-  labs(title = "Average rating of board games per release year",
+  labs(title = "Average user rating of board games per release year",
        y = "Average rating",
        x = "")
 ```
+We see the average review go up as well as the number of reviews going up as newer board games come out
+
+> Spread of ratings
 
 ```{r}
-rating2 %>% 
+modern %>% 
   group_by(year) %>% 
-  summarise(avg_rating = mean(average),
-            sum_users = sum(users_rated)) %>% 
-  ggplot(aes(x = year))+
-  geom_line(aes(y = sum_users))+
-    labs(title = "Number of reviews of board games per release year",
-       y = "Number of reviews",
-       x = "")
+  ggplot(aes(x = year, bayes_average))+
+  geom_point()+
+  geom_smooth(method = lm, se = FALSE)+
+  labs(title = "Spread of average ratings",
+       y = "Bayes average rating",
+       x = "")+
+  scale_x_continuous(n.breaks = 10)+
+  scale_y_continuous(n.breaks = 10)
 ```
 
-We see the average review go up as well as the number of reviews going up as newer board games come out
-The dip towards the end might be because there have not been new releases recently
+Notes so far:
+
+* Games released in the later years are: 
+  + More popular (more users are reviewing them)
+  + Higher rated 
+  
+* Less games released from 2016 and on
+
+> Joining the datasets
+
+```{r}
+# details <- details %>% mutate(across(boardgamecategory:boardgamepublisher, ~str_remove_all(., "[\\[\\]']"))) 
+# Cleans up any square brackets and single quotes
+
+details$boardgamecategory <- details$boardgamecategory %>% str_remove_all(., "[\\[\\]']")
+joined <- rating %>% left_join(details, by = "id")
+
+```
+
+
+
+```{r}
+joined %>% 
+  mutate(avgplaytime = (minplaytime + maxplaytime) / 2) %>% 
+  filter(avgplaytime < 600 & avgplaytime >= 1 & year > 1900) %>% 
+  # Because 10 hour game seems unreasonably long as well as keeping things to only "modern"
+  ggplot(aes(x = avgplaytime, average))+
+  geom_point()+
+  geom_smooth(method = "gam", se = FALSE)+
+  labs(title = "Average play time vs User Average Rating",
+       y = "Average rating",
+       x = "Average play time (min)")+
+  scale_x_continuous(n.breaks = 6)+
+  scale_y_continuous(n.breaks = 10)
+```
+
+We see that there are a lot more shorter games than longer games, which brings the average rating down
+
+> Is there a difference in ratings depending on who owns the game compared to those that want or wish for it?
+
+```{r}
+joined %>% 
+  mutate(avgplaytime = (minplaytime + maxplaytime) / 2) %>% 
+  filter(avgplaytime < 1000 & avgplaytime >= 1 & year > 1900) %>% 
+  # Because 1000 min game seems unreasonably long as well as keeping things to only "modern"
+  ggplot(aes(x = users_rated, y = average))+
+  geom_point(aes(x = owned, color = "Owned"))+
+  geom_smooth(aes(x = owned), se = FALSE)+
+  labs(title = "Game ownership vs User Average Rating",
+       y = "Average rating",
+       x = "Users")+
+  scale_x_continuous(n.breaks = 6)+
+  scale_y_continuous(n.breaks = 10)
+```
+
+```{r}
+joined %>% 
+  mutate(avgplaytime = (minplaytime + maxplaytime) / 2) %>% 
+  filter(avgplaytime < 1000 & avgplaytime >= 1 & year > 1900) %>% 
+  # Because 1000 min game seems unreasonably long as well as keeping things to only "modern"
+  ggplot(aes(x = users_rated, y = average))+
+  geom_point(aes(x = wishing, color = "Wishing"))+
+  geom_smooth(aes(x = wishing), se = FALSE)+
+  labs(title = "Game ownership vs User Average Rating",
+       y = "Average rating",
+       x = "Users")+
+  scale_x_continuous(n.breaks = 6)+
+  scale_y_continuous(n.breaks = 10)
+```
+
+
+```{r}
+joined %>% 
+  mutate(avgplaytime = (minplaytime + maxplaytime) / 2) %>% 
+  filter(avgplaytime < 1000 & avgplaytime >= 1 & year > 1900) %>% 
+  # Because 1000 min game seems unreasonably long as well as keeping things to only "modern"
+  ggplot(aes(x = users_rated, y = average))+
+  geom_point(aes(x = wanting, color = "Wanting"))+
+  geom_smooth(aes(x = wanting), se = FALSE)+
+  labs(title = "Game ownership vs User Average Rating",
+       y = "Average rating",
+       x = "Users")+
+  scale_x_continuous(n.breaks = 6)+
+  scale_y_continuous(n.breaks = 10)
+```
+
+People that do not own the game seem to rate games higher than those that own it
+
+> Checking if category has an effect on ratings
+
+```{r}
+joinedsep <- joined %>% separate_rows(boardgamecategory, sep = ", ")
+# Category are separated by commas, this puts them in different rows
+
+top10category <- joinedsep %>% 
+  count(boardgamecategory) %>% 
+  arrange(desc(n)) %>% 
+  head(10) 
+
+# Get the top 10 most popular categories
+```
+
+> Overview of the top 10 categories
+
+```{r}
+joinedsep %>% 
+  filter(boardgamecategory %in% top10category$boardgamecategory) %>% 
+  group_by(boardgamecategory) %>% 
+  ggplot(aes(x = boardgamecategory, y = users_rated))+
+  geom_point()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5))+
+  labs(title = "Review Spread of Top 10 most popular categories",
+       x = "",
+       y = "Number of user ratings")
+
+joinedsep %>% 
+  filter(boardgamecategory %in% top10category$boardgamecategory) %>% 
+  group_by(boardgamecategory) %>%
+  ggplot(aes(x = fct_reorder(boardgamecategory, average), y = average))+
+  geom_boxplot(outlier.shape = 1, aes(fill = boardgamecategory))+
+  labs(title = "User Rating Spread of Top 10 most popular categories",
+       x = "",
+       y = "User average ratings",
+       subtitle = "Outliers shown in circles")+
+  coord_flip()+
+  scale_y_continuous(n.breaks = 11)+
+  theme_classic()+
+  theme(legend.position = "")
+```
+War games, Fighting, Fantasy, Sci-Fi and Economic games average higher than the rest of the top 10 categories
+
+
+> Checking differences based on game ownership
+
+```{r}
+p1 <- joined %>%
+  filter(year >= 1900) %>% 
+  group_by(id) %>% 
+  mutate(ownership = sum(owned + trading), # Combining those that own the physical game + those that want to trade for it
+         notowned = sum(wanting + wishing)) %>% # Combining those that have never owned the game
+  group_by(year) %>% 
+  ggplot(aes(x = year, y = users_rated))+
+  geom_point(aes(y = ownership))+
+  labs(title = "Own game")+
+  scale_y_continuous(n.breaks = 10)
+
+p2 <- joined %>%
+  filter(year >= 1900) %>% 
+  group_by(id) %>% 
+  mutate(ownership = sum(owned + trading), # Combining those that own the physical game + those that want to trade for it
+         notowned = sum(wanting + wishing)) %>% # Combining those that have never owned the game
+  group_by(year) %>% 
+  ggplot(aes(x = year, y = users_rated))+
+  geom_point(aes(y = notowned))+
+  labs(title = "Do not own game")+
+  scale_y_continuous(n.breaks = 10)
+p1
+p2
+```
+
