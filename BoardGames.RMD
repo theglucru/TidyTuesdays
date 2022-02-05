@@ -246,28 +246,83 @@ War games, Fighting, Fantasy, Sci-Fi and Economic games average higher than the 
 > Checking differences based on game ownership
 
 ```{r}
-p1 <- joined %>%
+pct_joined <- joined %>%
   filter(year >= 1900) %>% 
-  group_by(id) %>% 
-  mutate(ownership = sum(owned + trading), # Combining those that own the physical game + those that want to trade for it
-         notowned = sum(wanting + wishing)) %>% # Combining those that have never owned the game
-  group_by(year) %>% 
-  ggplot(aes(x = year, y = users_rated))+
-  geom_point(aes(y = ownership))+
-  labs(title = "Own game")+
-  scale_y_continuous(n.breaks = 10)
+  group_by(id) %>%
+  mutate(pct_owned = (owned / users_rated) * 100,
+         pct_want = (wanting / users_rated) * 100,
+         pct_trading = (trading / users_rated) * 100,
+         pct_wishing = (wishing / users_rated) * 100)
 
-p2 <- joined %>%
-  filter(year >= 1900) %>% 
+ggplot(pct_joined, aes(x = year))+
+geom_point(aes(y = pct_owned, color = "Percent owned"))+
+  geom_point(aes(y = pct_trading, color = "Percent trading"))+
+  scale_x_continuous(n.breaks = 10)+
+  labs(y = "Percentage of users",
+       x = "",
+       title = "Game ownership / number of ratings")+
+  scale_y_continuous(n.breaks = 12)
+
+ggplot(pct_joined, aes(x = year))+
+geom_point(aes(y = pct_wishing, color = "Percent wishing"))+
+  geom_point(aes(y = pct_want, color = "Percent wanting"))+
+  scale_x_continuous(n.breaks = 10)+
+  labs(y = "Percentage of users",
+       x = "",
+       title = "Game ownership / number of ratings")+
+  scale_y_continuous(n.breaks = 12)
+```
+There are a lot points that are over 100 percent especially in the wishing and owning categories which can state that reviewers are more likely to state their ownership of a game rather than rate it
+
+
+```{r}
+detailspct <- joined %>% 
   group_by(id) %>% 
-  mutate(ownership = sum(owned + trading), # Combining those that own the physical game + those that want to trade for it
-         notowned = sum(wanting + wishing)) %>% # Combining those that have never owned the game
-  group_by(year) %>% 
-  ggplot(aes(x = year, y = users_rated))+
-  geom_point(aes(y = notowned))+
-  labs(title = "Do not own game")+
-  scale_y_continuous(n.breaks = 10)
-p1
-p2
+  mutate(total_users = sum(owned + trading + wanting + wishing)) %>% 
+  mutate(pct_owned = owned / total_users * 100,
+         pct_trading = trading / total_users * 100,
+         pct_wanting = wanting / total_users * 100,
+         pct_wishing = wishing / total_users * 100)
+
+detailspct %>% 
+  filter(year > 1900) %>% 
+  group_by(year) %>%
+  ggplot(aes(x = year))+
+    geom_point(aes(y = pct_owned, color = "Owned"))+
+  labs(title = "Percentage of users",
+       y = "Percent of users")+
+  geom_smooth(aes(y = pct_owned), se = FALSE)
+
+detailspct %>% 
+  filter(year > 1900) %>% 
+  group_by(year) %>%
+  ggplot(aes(x = year))+
+    geom_point(aes(y = trading, color = "Trading"))+
+  labs(title = "Percentage of users",
+       y = "Percent of users")+
+  geom_smooth(aes(y = pct_trading), se = FALSE)
+
+
+detailspct %>% 
+  filter(year > 1900) %>% 
+  group_by(year) %>%
+  ggplot(aes(x = year))+
+    geom_point(aes(y = pct_wishing, color = "Wishing"))+
+  labs(title = "Percentage of users",
+       y = "Percent of users")+
+  geom_smooth(aes(y = pct_wishing), se = FALSE)
+
+
+detailspct %>% 
+  filter(year > 1900) %>% 
+  group_by(year) %>%
+  ggplot(aes(x = year))+
+    geom_point(aes(y = pct_wanting, color = "Wanting"))+
+  labs(title = "Percentage of users",
+       y = "Percent of users")+
+  geom_smooth(aes(y = pct_wanting), se = FALSE)
+
 ```
 
+These 4 plots here calculate the percentage of users that own/trading/want/wishing for the game.
+We see that as newer games come out, less people own them and more people more people want them i.e. lower supply higher demand
