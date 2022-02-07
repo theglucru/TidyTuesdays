@@ -166,7 +166,7 @@ joined %>%
   scale_y_continuous(n.breaks = 10)
 ```
 
-```{r}
+```{r, echo = FALSE}
 joined %>% 
   mutate(avgplaytime = (minplaytime + maxplaytime) / 2) %>% 
   filter(avgplaytime < 1000 & avgplaytime >= 1 & year > 1900) %>% 
@@ -224,7 +224,8 @@ joinedsep %>%
   theme(axis.text.x = element_text(angle = 45, vjust = 0.5))+
   labs(title = "Review Spread of Top 10 most popular categories",
        x = "",
-       y = "Number of user ratings")
+       y = "Number of user ratings",
+       subtitle = "Points represent an individual game")
 
 joinedsep %>% 
   filter(boardgamecategory %in% top10category$boardgamecategory) %>% 
@@ -326,3 +327,15 @@ detailspct %>%
 
 These 4 plots here calculate the percentage of users that own/trading/want/wishing for the game.
 We see that as newer games come out, less people own them and more people more people want them i.e. lower supply higher demand
+
+Concluding notes
+
+* Board games have gain increasing popularity
+
+* War games, Fighting, Fantasy, Sci-Fi and Economic games are the most popular genres and highest rated
+  + May suggest that the competitive ones are more preferred by consumers
+  
+* Most games will have an average play time of < 2 hours
+
+* The number of ratings is very different than the number of ownership status, for people that state that they own the game
+  + This suggests that people are far less likely to rate something that they buy
