@@ -1,0 +1,91 @@
+---
+title: "Dog Breeds"
+date: 2022-02-022
+output: html_document
+---
+
+# TidyTuesday
+
+Join the R4DS Online Learning Community in the weekly #TidyTuesday event!
+Every week we post a raw dataset, a chart or article related to that dataset, and ask you to explore the data.
+While the dataset will be “tamed”, it will not always be tidy! As such you might need to apply various R for Data Science techniques to wrangle the data into a true tidy format.
+The goal of TidyTuesday is to apply your R skills, get feedback, explore other’s work, and connect with the greater #RStats community!
+As such we encourage everyone of all skills to participate!
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+
+library(tidyverse)
+library(tidytuesdayR)
+library(ggimage)
+```
+
+# Load the weekly Data
+
+Download the weekly data and make available in the `tt` object.
+
+```{r Load}
+
+breed_traits <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-02-01/breed_traits.csv')
+trait_description <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-02-01/trait_description.csv')
+breed_rank_all <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-02-01/breed_rank.csv')
+```
+
+
+# Readme
+
+### The idea behind this analysis is to, based on the ratings, find ideal dog breeds
+
+```{r}
+trait_description
+```
+The Ideal dog breed should have high ratings in the "positive" categories. 
+
+Some are subjective depending on a person's lifestyle and preference but the ones I will rate on will be
+
+* Affectionate With Family
+
+* Good With Young Children
+
+* Good With Other Dogs
+
+* Openness To Strangers
+
+* Watchdog/Protective Nature
+
+* Trainability Level
+
+```{r}
+positive_traits <-  c("Affectionate With Family", "Good With Young Children", "Good With Other Dogs", "Openness To Strangers", "Watchdog/Protective Nature", "Trainability Level")
+
+df <- breed_traits %>% select(Breed, positive_traits)
+df2 <- df %>% 
+  pivot_longer(cols = 2:7, names_to = "Trait", values_to = "value") %>% 
+  group_by(Breed)%>% 
+  summarise(sum_traits = sum(value)) %>% 
+  arrange(desc(sum_traits)) %>% 
+  head(10)
+
+df2$Breed <- df2$Breed %>% str_remove_all("[(|)]") %>% str_replace_all("\\s", "_")
+
+df3 <- breed_rank_all %>% select(Breed, Image)
+df3$Breed <- df3$Breed %>% str_remove_all("[(|)]") %>% str_replace_all("\\s", "_")
+
+df3 <- df2 %>% left_join(df3)
+df3$Breed <- df3$Breed %>% str_replace_all("_", " ")
+```
+
+```{r}
+plot <- ggplot(df3, aes(x = fct_reorder(Breed, sum_traits), sum_traits, fill = Breed))+
+  geom_col()+
+  labs(title = "Highest Rated Dog Breeds",
+       subtitle = "Based on Affection, Openness to Strangers, Protective Nature, Trainability",
+       x = "",
+       y = "Sum of Rating")+
+  theme(legend.position = "")+
+  coord_flip()
+
+plot + geom_image(aes(image = Image), size = 0.09)
+```
+
