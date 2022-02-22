@@ -23,7 +23,9 @@ library(ggimage)
 
 # Load the weekly Data
 
-Download the weekly data and make available in the `tt` object.
+Data is from the Dog Breeds dataset found on the R For Data Science/TidyTuesday github
+
+> Thomas Mock (2022). Tidy Tuesday: A weekly data project aimed at the R ecosystem. https://github.com/rfordatascience/tidytuesday.
 
 ```{r Load}
 
@@ -33,9 +35,11 @@ breed_rank_all <- readr::read_csv('https://raw.githubusercontent.com/rfordatasci
 ```
 
 
-# Readme
+## Readme
 
-### The idea behind this analysis is to, based on the ratings, find ideal dog breeds
+### The idea behind this analysis is to, based on the ratings, find what is mathematically the best dog breed.
+
+*In the end what kind of dog breed is best for you is all about preferences, this is just meant to act as a "guide" based on the ratings I found*
 
 ```{r}
 trait_description
@@ -56,36 +60,61 @@ Some are subjective depending on a person's lifestyle and preference but the one
 
 * Trainability Level
 
+I will list these traits with a negative value (i.e. these values will be subtracted from overall score)
+
+* Coat Grooming Frequency
+
+* Drooling Level
+
+* Shedding Level
+
+* Barking Level
+
 ```{r}
 positive_traits <-  c("Affectionate With Family", "Good With Young Children", "Good With Other Dogs", "Openness To Strangers", "Watchdog/Protective Nature", "Trainability Level")
 
-df <- breed_traits %>% select(Breed, positive_traits)
-df2 <- df %>% 
-  pivot_longer(cols = 2:7, names_to = "Trait", values_to = "value") %>% 
-  group_by(Breed)%>% 
+negative_traits <- c("Coat Grooming Frequency", "Drooling Level", "Shedding Level", "Barking Level")
+
+dfpos <- breed_traits %>% select(Breed, all_of(positive_traits))
+dfneg <- breed_traits %>% select(Breed, all_of(negative_traits))
+
+bt2 <- breed_traits %>% 
+  select(Breed, all_of(positive_traits), all_of(negative_traits)) %>% 
+  pivot_longer(cols = 2:11, names_to = "Trait", values_to = "value")
+
+bt2 <- bt2 %>% 
+  mutate(value = case_when(Trait %in% positive_traits ~ value,
+                           Trait %in% negative_traits ~ value *-1)) %>% 
+  group_by(Breed) %>% 
   summarise(sum_traits = sum(value)) %>% 
   arrange(desc(sum_traits)) %>% 
   head(10)
 
-df2$Breed <- df2$Breed %>% str_remove_all("[(|)]") %>% str_replace_all("\\s", "_")
+bt2$Breed <- bt2$Breed %>% str_remove_all("[(|)]") %>% str_replace_all("\\s", "_")
 
-df3 <- breed_rank_all %>% select(Breed, Image)
-df3$Breed <- df3$Breed %>% str_remove_all("[(|)]") %>% str_replace_all("\\s", "_")
+breed_rank_all <- breed_rank_all %>% select(Breed, Image)
+breed_rank_all$Breed <- breed_rank_all$Breed %>% str_remove_all("[(|)]") %>% str_replace_all("\\s", "_")
 
-df3 <- df2 %>% left_join(df3)
-df3$Breed <- df3$Breed %>% str_replace_all("_", " ")
+joined <- bt2 %>% 
+  left_join(breed_rank_all)
+
+joined$Breed <- joined$Breed %>% str_replace_all("_", " ")
 ```
 
-```{r}
-plot <- ggplot(df3, aes(x = fct_reorder(Breed, sum_traits), sum_traits, fill = Breed))+
-  geom_col()+
-  labs(title = "Highest Rated Dog Breeds",
-       subtitle = "Based on Affection, Openness to Strangers, Protective Nature, Trainability",
-       x = "",
-       y = "Sum of Rating")+
-  theme(legend.position = "")+
-  coord_flip()
 
-plot + geom_image(aes(image = Image), size = 0.09)
+```{r}
+plot <- ggplot(joined, aes(x = fct_reorder(Breed, -sum_traits), sum_traits))
+
+plot+
+  geom_image(aes(image = Image), size = 0.1)+
+  scale_y_continuous(limits = c(15,20))+
+  theme_classic()+
+  labs(title = "Best Ranking Dog Breeds",
+       subtitle = "Based on factors listed above",
+       y = "Total Score",
+       x = "")+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1),
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank())
 ```
 
