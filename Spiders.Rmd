@@ -1,0 +1,79 @@
+---
+title: "TidyTuesdays Spiders"
+author: "Gary Lu"
+date: "12/7/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(tidytuesdayR)
+library(maps)
+
+tuesdata <- tidytuesdayR::tt_load('2021-12-07')
+spiders <- tuesdata$spiders
+```
+
+### The Data comes from the [Tidy Tuesdays Github](https://github.com/rfordatascience/tidytuesday/blob/master/data/2021/2021-12-07/readme.md)
+
+
+### Basic Breakdowns
+```{r}
+spiders %>% 
+  count(family) %>% 
+  n_distinct()
+
+spiders %>% 
+  count(family, genus) %>% 
+  n_distinct()
+
+spiders %>% 
+  count(family, genus, species) %>% 
+  n_distinct()
+
+spiders %>% 
+  count(family, genus, species, subspecies) %>% 
+  n_distinct()
+```
+Number of taxonomy combinations available
+
+```{r}
+spiders %>% 
+  count(author) %>% 
+  arrange(desc(n)) %>% 
+  head(10) %>% 
+  ggplot(aes(fct_reorder(author, n), n))+
+  geom_col()+
+  coord_flip()+
+  labs(x = "",
+       tite = "10 authors with the most discoveries")
+
+spiders %>% 
+  count(year) %>% 
+  arrange(desc(n)) %>% 
+  ggplot(aes(x = year, y = n))+
+  geom_col()+
+  labs(title = "Number of discovered species per year")
+```
+
+```{r, drawing map}
+#Removes commas in distribution and makes a new row with it
+spiders_sep <- spiders %>% 
+                separate_rows(distribution, sep = ", ")
+
+# Draw a World Map
+world_map <- map_data("world")
+
+joined <- left_join(world_map, spiders_sep, by = c("region" = "distribution"))
+            
+
+ggplot(world_map, aes(x = long, y = lat, group = group)) +
+  geom_polygon(color = "black", fill = "white")+
+  geom_polygon(data = spiders_sep, aes(fill = n))
+
+country_counts <- joined %>% group_by(region) %>% 
+                    summarise(n = n())
+country_counts
+# ggplot(joined, aes(x = long, y = lat, group = group))
+```
+

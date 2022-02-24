@@ -1,3 +1,2 @@
 # TidyTuesdays
-TidyTuesdays with R
-
+Exploratory data analysis using in the TidyTuesdays github
