@@ -1,0 +1,53 @@
+---
+title: "Crossword Puzzles and Clues"
+author: "Gary Lu"
+date: "4/19/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+tuesdata <- tidytuesdayR::tt_load('2022-04-19')
+```
+
+```{r cars}
+bigdave <- tuesdata$big_dave
+nytimes <- tuesdata$times
+```
+
+```{r}
+bigdef <- bigdave %>% 
+  filter(!is.na(definition)) %>% 
+  count(definition = tolower(definition)) %>% 
+  arrange(desc(n)) %>% 
+  head(10) %>% 
+  mutate(source = "bigdave")
+
+nytdef <- nytimes %>% 
+  filter(!is.na(definition)) %>% 
+  count(definition = tolower(definition),
+        source = "nytimes") %>% 
+  arrange(desc(n)) %>% 
+  head(10)%>% 
+  mutate(source = "nytimes")
+
+joined <- bind_rows(bigdef, nytdef)
+
+
+```
+
+```{r}
+plot <- joined %>% 
+  group_by(source) %>% 
+  ggplot(aes(x = fct_reorder(definition, n), y = n, fill = source))+
+  geom_col(position = position_dodge())+
+  coord_flip()
+
+plot+
+  labs(x = "",
+       y = "",
+       title = "Top 10 Crossword Answer Definitions",
+       caption = "Source: https://cryptics.georgeho.org/")
+```
+
