@@ -1,7 +1,7 @@
 # TidyTuesdays
 Exploratory data analysis using datasets in the TidyTuesdays github
 
-# Contents
+## PDF Presentations
 - [Board Games](https://github.com/theglucru/TidyTuesdays/blob/main/BoardGames.pdf)
 - [Dog Breeds](https://github.com/theglucru/TidyTuesdays/blob/main/DogBreeds.pdf)
 - [Mario Kart World Records](https://github.com/theglucru/TidyTuesdays/blob/main/MarioKartWR.pdf)
